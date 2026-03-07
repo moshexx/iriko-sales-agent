@@ -230,8 +230,8 @@ Each tenant can configure:
 | **1** | Repo scaffold: pyproject.toml, Docker Compose, Postgres, Redis, Qdrant ✓ |
 | **2** | FastAPI skeleton, Green API webhook ingress, tenant routing, dedup ✓ |
 | **3** | LangGraph factory + Iroko graph + core tools (RAG, CRM, escalate, book) ✓ |
-| **4** | Conversation memory, RAG pipeline, Qdrant seeding scripts ← IN PROGRESS |
-| **5** | Observability (OTel → SigNoz), rate limiting, DLQ + replay |
+| **4** | Conversation memory, RAG pipeline, Qdrant seeding scripts ✓ |
+| **5** | Observability (OTel → SigNoz), rate limiting, DLQ + replay ✓ |
 | **6** | DNG graph — medical screening state machine *(blocked: needs Biznness API)* |
 | **7** | Admin CLI, onboarding playbook, `.env.example` |
 | **8** | Production hardening: Postgres RLS, Vault, K8s manifests |

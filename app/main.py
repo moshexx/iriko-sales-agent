@@ -7,18 +7,28 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # ── Observability (must be first) ─────────────────────────────────────────
+    from app.observability.logging import setup_logging
+    from app.observability.tracing import setup_tracing
+
+    setup_logging()
+    setup_tracing(app)  # instruments FastAPI automatically
+
+    # ── DB tables (dev only — prod uses Alembic) ──────────────────────────────
     from app.db import engine
     from app.models.base import Base
+    import app.models.dlq  # noqa: F401 — register DLQEvent for create_all
+    import app.models.message  # noqa: F401 — register Message for create_all
 
     async with engine.begin() as conn:
-        # In production, Alembic handles migrations. This is dev-only auto-create.
         if not settings.is_production:
             await conn.run_sync(Base.metadata.create_all)
 
     yield
 
-    # Shutdown
+    # ── Shutdown ──────────────────────────────────────────────────────────────
+    from app.redis_client import close_redis
+    await close_redis()
     await engine.dispose()
 
 

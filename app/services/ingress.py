@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from arq import ArqRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.tenant import Tenant, TenantChannel
+from app.middleware.rate_limiter import RateLimitedError, check_rate_limit
 from app.redis_client import get_redis
 from app.schemas.greenapi import GreenAPIWebhook
 from app.services.tenant_router import TenantNotFoundError, get_tenant_by_instance_id
@@ -84,8 +84,15 @@ async def handle_webhook(
         logger.warning("Unknown instance_id=%s: %s", instance_id, exc)
         return IngressResult(accepted=False, reason="tenant_not_found")
 
-    # ── Step 4: Dedup ──────────────────────────────────────────────────────────
+    # ── Step 3.5: Rate limit ───────────────────────────────────────────────────
     redis = get_redis()
+    try:
+        await check_rate_limit(str(tenant.id), redis)
+    except RateLimitedError:
+        logger.warning("Rate limit exceeded tenant=%s instance=%s", tenant.slug, instance_id)
+        return IngressResult(accepted=False, reason="rate_limited")
+
+    # ── Step 4: Dedup ──────────────────────────────────────────────────────────
     dedup_key = f"dedup:{instance_id}:{event.id_message}"
 
     already_seen = await redis.set(dedup_key, "1", ex=DEDUP_TTL_SECONDS, nx=True)

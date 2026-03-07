@@ -37,8 +37,15 @@ def postgres_url():
     """
     Start a real Postgres container for the test session.
     'scope=session' means it starts once and is reused by all tests — much faster.
+    Skips if Docker is not available (e.g. in CI without Docker or local dev without Docker Desktop).
     """
     from testcontainers.postgres import PostgresContainer
+
+    try:
+        import docker
+        docker.from_env()
+    except Exception:
+        pytest.skip("Docker not available — skipping Postgres integration tests")
 
     with PostgresContainer("postgres:16-alpine") as pg:
         # testcontainers gives us a sync URL; we need the async variant

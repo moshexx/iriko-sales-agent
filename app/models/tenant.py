@@ -22,6 +22,7 @@ from app.models.base import Base, TimestampMixin
 class GraphType(StrEnum):
     IROKO = "iroko"
     DNG = "dng"
+    PASHUTOMAZIA = "pashutomazia"
 
 
 class Tenant(Base, TimestampMixin):

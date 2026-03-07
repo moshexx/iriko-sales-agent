@@ -51,6 +51,13 @@ def get_graph(graph_type: str) -> "CompiledStateGraph":
         from app.services.graphs.iroko_graph import build_graph
         graph = build_graph()
 
+    elif graph_type == GraphType.PASHUTOMAZIA:
+        # Pashutomazia uses the same Iroko-style conversational graph.
+        # The 6-stage flow is managed by the system prompt + conversation history.
+        # A dedicated graph with explicit stage nodes is future work.
+        from app.services.graphs.iroko_graph import build_graph
+        graph = build_graph()
+
     elif graph_type == GraphType.DNG:
         # Phase 6 — DNG Medical graph (blocked: needs Biznness API)
         raise NotImplementedError(

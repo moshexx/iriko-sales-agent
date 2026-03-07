@@ -47,8 +47,24 @@ async def process_message(ctx: dict, payload: dict[str, Any]) -> None:
         len(payload.get("text") or ""),
     )
 
+    attempt = ctx.get("job_try", 1)
+
     async with ctx["db_factory"]() as db:
-        await run_agent(payload, db)
+        try:
+            await run_agent(payload, db)
+        except Exception as exc:
+            logger.exception(
+                "worker:process_message FAILED tenant=%s chat=%s attempt=%d error=%s",
+                payload.get("tenant_id"),
+                payload.get("chat_id"),
+                attempt,
+                exc,
+            )
+            from app.workers.dlq_replay import save_to_dlq
+
+            async with ctx["db_factory"]() as dlq_db:
+                await save_to_dlq(payload, exc, attempt, dlq_db)
+            raise  # re-raise so ARQ can retry (up to max_tries)
 
 
 async def startup(ctx: dict) -> None:

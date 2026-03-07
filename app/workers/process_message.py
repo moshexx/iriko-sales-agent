@@ -26,30 +26,29 @@ logger = logging.getLogger(__name__)
 
 async def process_message(ctx: dict, payload: dict[str, Any]) -> None:
     """
-    Main job: process one inbound WhatsApp message.
+    Main job: process one inbound WhatsApp message end-to-end.
 
     payload keys:
       instance_id, tenant_id, graph_type, chat_id, phone_number,
       sender_name, id_message, text, type_message, timestamp
 
-    Phase 3 will replace the stub below with the LangGraph agent runner.
+    Delegates to agent_orchestrator which:
+      1. Loads tenant config from DB
+      2. Runs the correct LangGraph graph
+      3. Sends the reply via Green API
     """
-    tenant_id = payload.get("tenant_id")
-    chat_id = payload.get("chat_id")
-    text = payload.get("text")
-    graph_type = payload.get("graph_type")
+    from app.services.agent_orchestrator import run_agent
 
     logger.info(
-        "Processing message tenant=%s chat=%s graph=%s text_len=%d",
-        tenant_id,
-        chat_id,
-        graph_type,
-        len(text or ""),
+        "worker:process_message tenant=%s chat=%s graph=%s text_len=%d",
+        payload.get("tenant_id"),
+        payload.get("chat_id"),
+        payload.get("graph_type"),
+        len(payload.get("text") or ""),
     )
 
-    # TODO Phase 3: replace with LangGraph agent runner
-    # from app.services.agent_orchestrator import run_agent
-    # await run_agent(payload, ctx["db"])
+    async with ctx["db_factory"]() as db:
+        await run_agent(payload, db)
 
 
 async def startup(ctx: dict) -> None:

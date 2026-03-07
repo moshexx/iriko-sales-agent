@@ -26,8 +26,9 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base import Base
-from app.models.message import Message  # ensure model is registered for table creation
-from app.models.tenant import Tenant, TenantChannel  # ensure models are registered
+from app.models.dlq import DLQEvent  # ensure dlq_events table is created  # noqa: F401
+from app.models.message import Message  # ensure messages table is created  # noqa: F401
+from app.models.tenant import Tenant, TenantChannel  # ensure tenant tables are created
 
 
 # ─── Postgres (testcontainers) ────────────────────────────────────────────────
@@ -49,7 +50,10 @@ def postgres_url():
 
     with PostgresContainer("postgres:16-alpine") as pg:
         # testcontainers gives us a sync URL; we need the async variant
-        url = pg.get_connection_url().replace("psycopg2", "asyncpg").replace("postgresql", "postgresql+asyncpg")
+        raw = pg.get_connection_url()
+        # testcontainers returns postgresql+psycopg2:// or postgresql://
+        # We need postgresql+asyncpg:// for SQLAlchemy async
+        url = raw.replace("postgresql+psycopg2", "postgresql+asyncpg").replace("postgresql://", "postgresql+asyncpg://")
         yield url
 
 
@@ -68,15 +72,17 @@ async def db_engine(postgres_url):
 @pytest_asyncio.fixture
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """
-    Provides a fresh DB session per test, wrapped in a transaction that is
-    rolled back after each test. This keeps tests isolated without dropping tables.
+    Provides a fresh DB session per test.
+
+    Each test gets its own AsyncSession. Any uncommitted changes are rolled back
+    at the end of the test. This keeps tests isolated without needing to drop tables.
+
+    Note: tests must use flush() (not commit()) for the rollback to take effect.
+    The memory and DLQ services correctly use flush(), not commit().
     """
-    async with db_engine.connect() as conn:
-        await conn.begin()
-        session_factory = async_sessionmaker(bind=conn, expire_on_commit=False)
-        async with session_factory() as session:
-            yield session
-        await conn.rollback()
+    async with AsyncSession(db_engine, expire_on_commit=False) as session:
+        yield session
+        await session.rollback()
 
 
 # ─── Redis (fakeredis) ────────────────────────────────────────────────────────

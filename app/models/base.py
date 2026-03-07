@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -22,7 +22,12 @@ class TenantMixin:
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        # clock_timestamp() returns the real wall-clock time at each row insertion,
+        # unlike now() which returns the transaction start time (same for all rows
+        # in the same transaction). Essential for correct ordering of messages.
+        DateTime(timezone=True),
+        server_default=text("clock_timestamp()"),
+        nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

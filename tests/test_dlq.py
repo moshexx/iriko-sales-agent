@@ -107,22 +107,36 @@ class TestSaveToDlq:
 class TestReplayDlq:
     async def test_returns_zero_when_no_pending_events(self, db_session):
         """replay_dlq with empty DLQ returns {replayed:0, failed:0, total:0}."""
+        from contextlib import asynccontextmanager
+        from unittest.mock import patch
+
+        @asynccontextmanager
+        async def mock_session_factory():
+            yield db_session
+
         ctx = {"arq": AsyncMock()}
-        result = await replay_dlq(ctx)
+        with patch("app.db.AsyncSessionLocal", mock_session_factory):
+            result = await replay_dlq(ctx)
 
         assert result["replayed"] == 0
         assert result["failed"] == 0
         assert result["total"] == 0
 
     async def test_returns_early_when_no_arq(self, db_session):
-        """replay_dlq with no arq in ctx returns without crashing."""
-        # First save an event so there's something to replay
-        error = Exception("test fail")
-        await save_to_dlq(SAMPLE_PAYLOAD, error, attempt=1, db=db_session)
-        await db_session.commit()
+        """replay_dlq with no arq in ctx logs error and returns without crashing."""
+        from contextlib import asynccontextmanager
+        from unittest.mock import patch
+
+        # Save a pending event first
+        await save_to_dlq(SAMPLE_PAYLOAD, Exception("test fail"), attempt=1, db=db_session)
+        await db_session.flush()
+
+        @asynccontextmanager
+        async def mock_session_factory():
+            yield db_session
 
         ctx = {}  # no "arq" key
-        result = await replay_dlq(ctx)
+        with patch("app.db.AsyncSessionLocal", mock_session_factory):
+            result = await replay_dlq(ctx)
 
         assert result["replayed"] == 0
-        # total may be > 0 since there are pending events

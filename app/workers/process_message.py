@@ -1,0 +1,90 @@
+"""
+ARQ background worker — processes a single inbound WhatsApp message end-to-end.
+
+How ARQ works:
+  ARQ is a Redis-backed job queue for Python async.
+  The webhook handler enqueues a job: await arq.enqueue_job("process_message", payload)
+  This worker picks it up and runs it asynchronously — completely separate from the HTTP request.
+
+Why this matters:
+  LLM calls take 5–30 seconds. We can't block the webhook response that long.
+  The worker has as much time as it needs.
+
+WorkerSettings tells ARQ which functions are jobs and how to connect to Redis.
+"""
+
+import logging
+from typing import Any
+
+from arq import ArqRedis
+from arq.connections import RedisSettings
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+async def process_message(ctx: dict, payload: dict[str, Any]) -> None:
+    """
+    Main job: process one inbound WhatsApp message.
+
+    payload keys:
+      instance_id, tenant_id, graph_type, chat_id, phone_number,
+      sender_name, id_message, text, type_message, timestamp
+
+    Phase 3 will replace the stub below with the LangGraph agent runner.
+    """
+    tenant_id = payload.get("tenant_id")
+    chat_id = payload.get("chat_id")
+    text = payload.get("text")
+    graph_type = payload.get("graph_type")
+
+    logger.info(
+        "Processing message tenant=%s chat=%s graph=%s text_len=%d",
+        tenant_id,
+        chat_id,
+        graph_type,
+        len(text or ""),
+    )
+
+    # TODO Phase 3: replace with LangGraph agent runner
+    # from app.services.agent_orchestrator import run_agent
+    # await run_agent(payload, ctx["db"])
+
+
+async def startup(ctx: dict) -> None:
+    """Called once when the worker starts."""
+    from app.db import AsyncSessionLocal
+    from app.redis_client import get_redis
+
+    ctx["db_factory"] = AsyncSessionLocal
+    ctx["redis"] = get_redis()
+    logger.info("Worker started")
+
+
+async def shutdown(ctx: dict) -> None:
+    """Called once when the worker shuts down."""
+    from app.redis_client import close_redis
+
+    await close_redis()
+    logger.info("Worker stopped")
+
+
+class WorkerSettings:
+    """ARQ worker configuration."""
+
+    functions = [process_message]
+    on_startup = startup
+    on_shutdown = shutdown
+
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+
+    # Retry failed jobs up to 3 times with exponential backoff
+    max_tries = 3
+
+    # Job timeout: 120 seconds (plenty for LLM + tool calls)
+    job_timeout = 120
+
+    # How many jobs to run concurrently per worker process
+    # Keep low to avoid hammering external APIs per tenant
+    max_jobs = 10

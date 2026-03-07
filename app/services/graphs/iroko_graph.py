@@ -63,6 +63,9 @@ class AgentState(TypedDict):
     llm_model: str                 # e.g. "anthropic/claude-sonnet-4-6"
     qdrant_collection: str
 
+    # ── Loaded by orchestrator before graph runs ──
+    chat_history: list[dict]       # [{role, content}, ...] ordered oldest-first
+
     # ── Set by retrieve node ──
     retrieved_context: list[str]   # relevant chunks from Qdrant
 
@@ -122,29 +125,30 @@ async def node_qualify(state: AgentState) -> dict[str, Any]:
 
 async def node_respond(state: AgentState) -> dict[str, Any]:
     """
-    Generate the LLM reply and send it to the user via Green API.
+    Generate the LLM reply using the full conversation context.
 
-    In Phase 3, this generates the reply text.
-    Phase 4 will add conversation memory (chat history) to the prompt.
+    Prompt structure:
+      system: persona + relevant knowledge base chunks
+      [history]: past turns from Postgres (oldest-first)
+      user: the current message
+
+    Including history lets the LLM say "as you mentioned earlier..."
+    and continue qualification across multiple turns naturally.
     """
     import litellm
 
-    logger.info("iroko:respond chat=%s", state["chat_id"])
+    logger.info("iroko:respond chat=%s history_len=%d", state["chat_id"], len(state.get("chat_history", [])))
 
     context_block = "\n\n".join(state["retrieved_context"]) if state["retrieved_context"] else ""
 
-    messages = [
-        {
-            "role": "system",
-            "content": state["system_prompt"] + (
-                f"\n\n## Relevant Knowledge\n{context_block}" if context_block else ""
-            ),
-        },
-        {
-            "role": "user",
-            "content": state["text"],
-        },
-    ]
+    system_content = state["system_prompt"]
+    if context_block:
+        system_content += f"\n\n## Relevant Knowledge\n{context_block}"
+
+    # Build the message list: system + history + current user message
+    messages: list[dict] = [{"role": "system", "content": system_content}]
+    messages.extend(state.get("chat_history", []))  # past turns (may be empty for first message)
+    messages.append({"role": "user", "content": state["text"]})
 
     response = await litellm.acompletion(
         model=state["llm_model"],

@@ -26,6 +26,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.models.base import Base
+from app.models.message import Message  # ensure model is registered for table creation
 from app.models.tenant import Tenant, TenantChannel  # ensure models are registered
 
 

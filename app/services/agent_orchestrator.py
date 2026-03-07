@@ -5,18 +5,15 @@ This is the bridge between the ARQ worker and the LangGraph graph.
 
 Responsibilities:
   1. Load tenant config from DB (system_prompt, llm_model, qdrant_collection, etc.)
-  2. Build the initial AgentState from the job payload + tenant config.
-  3. Run the graph (ainvoke).
-  4. Send the reply text back to the user via Green API.
-  5. Handle errors gracefully — log and fail the job so ARQ can retry.
+  2. Load conversation history from Postgres (last N turns).
+  3. Build the initial AgentState from payload + tenant config + history.
+  4. Run the graph (ainvoke).
+  5. Send the reply text back to the user via Green API.
+  6. Save the new turn (user message + reply) to Postgres.
 
-Why is sending the reply HERE and not inside the graph?
-  The graph produces reply_text. Sending is a side effect with external I/O.
-  Keeping I/O at the orchestrator boundary makes the graph testable in isolation.
-
-Phase 4 will add:
-  - Load + store chat history (Postgres) before/after the graph
-  - Token usage tracking for cost control (llm_monthly_token_cap)
+Why is I/O at the orchestrator boundary?
+  The graph produces reply_text. Sending and saving are side effects.
+  Keeping them here makes the graph itself pure and testable in isolation.
 """
 
 from __future__ import annotations
@@ -28,6 +25,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.graphs.factory import get_graph
+from app.services.memory import load_history, save_turn
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +63,13 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
     # ── 1. Load tenant config ─────────────────────────────────────────────────
     tenant_config = await _load_tenant_config(tenant_id, db)
 
-    # ── 2. Build initial state ────────────────────────────────────────────────
+    # ── 2. Load conversation history ──────────────────────────────────────────
+    # History gives the LLM context from previous turns in this conversation.
+    # Empty list for first message — that's fine.
+    chat_history = await load_history(tenant_id=tenant_id, chat_id=chat_id, db=db)
+
+    # ── 3. Build initial state ────────────────────────────────────────────────
+    user_text = payload.get("text", "")
     initial_state = {
         # From the job payload
         "tenant_id": tenant_id,
@@ -73,7 +77,7 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
         "chat_id": chat_id,
         "phone_number": payload.get("phone_number", ""),
         "sender_name": payload.get("sender_name", ""),
-        "text": payload.get("text", ""),
+        "text": user_text,
         "id_message": payload.get("id_message", ""),
         "graph_type": graph_type,
 
@@ -81,6 +85,9 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
         "system_prompt": tenant_config["system_prompt"],
         "llm_model": tenant_config["llm_model"],
         "qdrant_collection": tenant_config["qdrant_collection"],
+
+        # From memory service (Phase 4)
+        "chat_history": chat_history,
 
         # Initialized empty — nodes will fill these in
         "retrieved_context": [],
@@ -91,11 +98,11 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
         "should_escalate": False,
     }
 
-    # ── 3. Get the correct graph and run it ───────────────────────────────────
+    # ── 4. Get the correct graph and run it ───────────────────────────────────
     graph = get_graph(graph_type)
     final_state = await graph.ainvoke(initial_state)
 
-    # ── 4. Send the reply via Green API ───────────────────────────────────────
+    # ── 5. Send the reply via Green API ───────────────────────────────────────
     reply_text = final_state.get("reply_text", "")
     if reply_text:
         await _send_reply(
@@ -103,6 +110,17 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
             chat_id=chat_id,
             text=reply_text,
             tenant_config=tenant_config,
+        )
+
+        # ── 6. Save this turn to memory ───────────────────────────────────────
+        # Only save if we actually replied (no point storing a one-sided exchange)
+        await save_turn(
+            tenant_id=tenant_id,
+            chat_id=chat_id,
+            user_text=user_text,
+            assistant_text=reply_text,
+            db=db,
+            id_message=payload.get("id_message"),
         )
     else:
         logger.warning(
@@ -112,9 +130,10 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
         )
 
     logger.info(
-        "orchestrator:done tenant=%s chat=%s qualification=%s",
+        "orchestrator:done tenant=%s chat=%s history=%d qualification=%s",
         tenant_id,
         chat_id,
+        len(chat_history),
         final_state.get("qualification", "unknown"),
     )
 

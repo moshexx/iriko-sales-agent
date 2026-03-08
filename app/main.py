@@ -15,10 +15,10 @@ async def lifespan(app: FastAPI):
     setup_tracing(app)  # instruments FastAPI automatically
 
     # ── DB tables (dev only — prod uses Alembic) ──────────────────────────────
-    from app.db import engine
-    from app.models.base import Base
     import app.models.dlq  # noqa: F401 — register DLQEvent for create_all
     import app.models.message  # noqa: F401 — register Message for create_all
+    from app.db import engine
+    from app.models.base import Base
 
     async with engine.begin() as conn:
         if not settings.is_production:

@@ -25,7 +25,6 @@ import pytest
 
 from app.services.memory import get_message_count, load_history, save_turn
 
-
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 TENANT_A = str(uuid.uuid4())
@@ -173,6 +172,7 @@ class TestSaveTurn:
         )
 
         from sqlalchemy import select
+
         from app.models.message import Message
 
         result = await db_session.execute(

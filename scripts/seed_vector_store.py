@@ -52,7 +52,6 @@ import sys
 import uuid
 from pathlib import Path
 
-
 # ─── Chunking ─────────────────────────────────────────────────────────────────
 
 def chunk_file(path: Path) -> list[str]:

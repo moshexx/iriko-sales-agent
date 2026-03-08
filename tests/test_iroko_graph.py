@@ -27,10 +27,7 @@ Why mock the tools here and not use real ones?
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.graphs.iroko_graph import (
-    AgentState,
     build_graph,
     route_after_qualify,
 )

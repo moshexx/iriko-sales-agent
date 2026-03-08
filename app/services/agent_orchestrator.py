@@ -147,7 +147,7 @@ async def _load_tenant_config(tenant_id: str, db: AsyncSession) -> dict[str, Any
     """
     from sqlalchemy import select
 
-    from app.models.tenant import Tenant, TenantChannel
+    from app.models.tenant import Tenant
 
     result = await db.execute(
         select(Tenant).where(Tenant.id == uuid.UUID(tenant_id))

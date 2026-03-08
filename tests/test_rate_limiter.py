@@ -13,8 +13,8 @@ Key test cases:
   7. Rejection does not increment the counter (rejected message is rolled back)
 """
 
-import pytest
 import fakeredis.aioredis
+import pytest
 
 from app.middleware.rate_limiter import RateLimitedError, check_rate_limit, get_current_rate
 

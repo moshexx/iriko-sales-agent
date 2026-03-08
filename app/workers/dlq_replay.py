@@ -151,8 +151,9 @@ async def save_to_dlq(
 class ReplayWorkerSettings:
     """ARQ worker settings for the DLQ replay worker."""
 
-    from arq.connections import RedisSettings
     import os
+
+    from arq.connections import RedisSettings
 
     functions = [replay_dlq]
     redis_settings = RedisSettings.from_dsn(

@@ -10,11 +10,9 @@ Why real DB here and not mocks?
 Each test gets a fresh transaction (rolled back after) so tests don't interfere.
 """
 
-import uuid
 
 import pytest
 
-from app.models.tenant import Tenant, TenantChannel
 from app.services.tenant_router import TenantNotFoundError, get_tenant_by_instance_id
 
 

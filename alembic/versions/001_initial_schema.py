@@ -7,9 +7,8 @@ Create Date: 2026-03-07
 
 from __future__ import annotations
 
-import uuid
-
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "001"

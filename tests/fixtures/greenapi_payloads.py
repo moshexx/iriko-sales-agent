@@ -21,7 +21,7 @@ def incoming_text(
         "typeWebhook": "incomingMessageReceived",
         "instanceData": {
             "idInstance": instance_id,
-            "wid": f"972555000000@c.us",
+            "wid": "972555000000@c.us",
             "typeInstance": "whatsapp",
         },
         "timestamp": timestamp,

@@ -8,7 +8,6 @@ Phase 3 is a stub (no real calendar). These tests verify the contract:
   - Works when name is empty (anonymous lead)
 """
 
-import pytest
 
 from app.services.tools.book_meeting import book_meeting
 

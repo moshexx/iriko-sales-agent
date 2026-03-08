@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import uuid
 from pathlib import Path
 
 # ─── Tenant definitions ───────────────────────────────────────────────────────
@@ -90,7 +89,7 @@ TENANT_CONFIGS = {
 
 async def seed_tenant(slug: str, database_url: str) -> None:
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     config = TENANT_CONFIGS[slug]
     system_prompt = _read_prompt(config["system_prompt_file"])

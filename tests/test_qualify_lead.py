@@ -17,8 +17,6 @@ Key cases:
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.tools.qualify_lead import qualify_lead
 
 

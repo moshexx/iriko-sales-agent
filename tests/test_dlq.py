@@ -12,7 +12,6 @@ Key test cases:
   6. replay_dlq with no arq in ctx returns early
 """
 
-import uuid
 from unittest.mock import AsyncMock
 
 import pytest

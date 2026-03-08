@@ -48,6 +48,7 @@ async def readyz() -> ORJSONResponse:
     # Check Qdrant
     try:
         import httpx
+
         from app.config import settings
         async with httpx.AsyncClient(timeout=3) as client:
             resp = await client.get(f"{settings.qdrant_url}/healthz")

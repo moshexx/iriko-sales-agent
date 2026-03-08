@@ -32,10 +32,10 @@ if TYPE_CHECKING:
 # This avoids paying compilation cost for graph types that aren't used by
 # any tenant in the current worker process.
 
-_graph_cache: dict[str, "CompiledStateGraph"] = {}
+_graph_cache: dict[str, CompiledStateGraph] = {}
 
 
-def get_graph(graph_type: str) -> "CompiledStateGraph":
+def get_graph(graph_type: str) -> CompiledStateGraph:
     """
     Return the compiled LangGraph graph for the given graph_type.
 

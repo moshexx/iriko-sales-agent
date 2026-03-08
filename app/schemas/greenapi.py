@@ -10,7 +10,6 @@ Green API sends different event types (typeWebhook):
 Reference: https://green-api.com/en/docs/api/receiving/notifications-format/
 """
 
-from typing import Any
 
 from pydantic import BaseModel, Field
 

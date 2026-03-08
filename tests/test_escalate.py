@@ -9,7 +9,6 @@ the contract that future phases must not break:
   - Never raises for any valid inputs
 """
 
-import pytest
 
 from app.services.tools.escalate import HANDOFF_MESSAGE, escalate_to_human
 

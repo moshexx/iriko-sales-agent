@@ -16,20 +16,18 @@ Key concepts used here:
 4. pytest-asyncio — allows async test functions. All our service code is async.
 """
 
-import asyncio
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import fakeredis.aioredis
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.models.base import Base
 from app.models.dlq import DLQEvent  # ensure dlq_events table is created  # noqa: F401
 from app.models.message import Message  # ensure messages table is created  # noqa: F401
 from app.models.tenant import Tenant, TenantChannel  # ensure tenant tables are created
-
 
 # ─── Postgres (testcontainers) ────────────────────────────────────────────────
 

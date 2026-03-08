@@ -16,7 +16,6 @@ WorkerSettings tells ARQ which functions are jobs and how to connect to Redis.
 import logging
 from typing import Any
 
-from arq import ArqRedis
 from arq.connections import RedisSettings
 
 from app.config import settings

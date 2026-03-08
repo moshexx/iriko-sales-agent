@@ -7,7 +7,6 @@ They verify that we parse Green API payloads correctly and extract the right dat
 Why this matters: if our schema is wrong, every message is silently misread.
 """
 
-import pytest
 
 from app.schemas.greenapi import GreenAPIWebhook
 from tests.fixtures.greenapi_payloads import (

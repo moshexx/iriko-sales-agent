@@ -2,7 +2,7 @@ import logging
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import ORJSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,23 +24,18 @@ async def get_arq():
     return _arq_pool
 
 
-@router.post("/greenapi/{instance_id}")
+@router.post("/greenapi/{instance_id}", response_class=ORJSONResponse)
 async def greenapi_webhook(
     instance_id: str,
-    request: Request,
+    payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
-) -> ORJSONResponse:
+):
     """
     Receives all events from Green API for a specific instance (phone number).
 
     Green API expects a 200 response quickly. We parse, filter, dedup,
     then dispatch to the ARQ background worker and return immediately.
     """
-    try:
-        payload = await request.json()
-    except Exception:
-        return ORJSONResponse({"accepted": False, "reason": "invalid_json"}, status_code=400)
-
     arq = await get_arq()
     result = await handle_webhook(instance_id, payload, db, arq)
 

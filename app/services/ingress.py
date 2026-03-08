@@ -63,10 +63,10 @@ async def handle_webhook(
         # outgoingMessageReceived, stateInstanceChanged, incomingCall, etc.
         return IngressResult(accepted=False, reason=f"ignored_type:{event.type_webhook}")
 
-    if event.is_group_message:
-        # Group messages not supported in MVP
-        logger.debug("Dropping group message chat_id=%s", event.chat_id)
-        return IngressResult(accepted=False, reason="group_message")
+    if not event.is_private_chat:
+        # Only 1-on-1 chats (@c.us) — drop groups, broadcasts, newsletters, etc.
+        logger.debug("Dropping non-private chat_id=%s", event.chat_id)
+        return IngressResult(accepted=False, reason="non_private_chat")
 
     if not event.message_data:
         return IngressResult(accepted=False, reason="no_message_data")

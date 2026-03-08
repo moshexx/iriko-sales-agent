@@ -64,18 +64,18 @@ async def vector_search(
         )
         vector = embed_response.data[0]["embedding"]
 
-        # Step 2: search Qdrant
+        # Step 2: search Qdrant (qdrant-client >= 1.7 uses query_points)
         client = _get_qdrant()
-        results = await client.search(
+        response = await client.query_points(
             collection_name=collection,
-            query_vector=vector,
+            query=vector,
             limit=top_k,
             with_payload=True,
         )
 
         # Step 3: extract text from payload
         chunks = []
-        for hit in results:
+        for hit in response.points:
             text = hit.payload.get("text", "") if hit.payload else ""
             if text:
                 chunks.append(text)

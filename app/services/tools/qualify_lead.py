@@ -98,10 +98,17 @@ async def qualify_lead(
             messages=messages,
             max_tokens=200,
             temperature=0.0,
-            response_format={"type": "json_object"},
         )
 
-        raw = response.choices[0].message.content or "{}"
+        raw = (response.choices[0].message.content or "").strip()
+        if not raw:
+            raise ValueError("LLM returned empty response for qualification")
+        # Claude sometimes wraps JSON in markdown fences — strip them
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
         result = json.loads(raw)
 
         # Validate required fields with safe defaults

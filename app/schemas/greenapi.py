@@ -101,6 +101,11 @@ class GreenAPIWebhook(BaseModel):
         return self.sender_data.chat_id.endswith("@g.us")
 
     @property
+    def is_private_chat(self) -> bool:
+        """Only 1-on-1 WhatsApp chats (chatId ends with @c.us)."""
+        return self.chat_id.endswith("@c.us")
+
+    @property
     def chat_id(self) -> str:
         return self.sender_data.chat_id if self.sender_data else ""
 

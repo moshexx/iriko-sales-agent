@@ -52,6 +52,7 @@ async def process_message(ctx: dict, payload: dict[str, Any]) -> None:
     async with ctx["db_factory"]() as db:
         try:
             await run_agent(payload, db)
+            await db.commit()
         except Exception as exc:
             logger.exception(
                 "worker:process_message FAILED tenant=%s chat=%s attempt=%d error=%s",

@@ -87,6 +87,7 @@ TENANT_CONFIGS = {
 
 # ─── Seeding logic ────────────────────────────────────────────────────────────
 
+
 async def seed_tenant(slug: str, database_url: str) -> None:
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -111,7 +112,7 @@ async def seed_tenant(slug: str, database_url: str) -> None:
                                      qdrant_collection, rate_limit_rpm, extra_config,
                                      is_active, created_at, updated_at)
                 VALUES (:id, :slug, :name, :graph_type, :system_prompt, :llm_model,
-                        :qdrant_collection, :rate_limit_rpm, :extra_config::jsonb,
+                        :qdrant_collection, :rate_limit_rpm, CAST(:extra_config AS jsonb),
                         true, now(), now())
                 ON CONFLICT (slug) DO UPDATE SET
                     name = EXCLUDED.name,
@@ -135,6 +136,19 @@ async def seed_tenant(slug: str, database_url: str) -> None:
                 "extra_config": str(config["extra_config"]).replace("'", '"'),
             },
         )
+
+        if slug == "pashutomazia":
+            await db.execute(
+                text("""
+                    INSERT INTO tenant_channels (id, tenant_id, instance_id, token_ref, label, is_active, created_at, updated_at)
+                    VALUES (gen_random_uuid(), :tenant_id, '7103335194', 'dummy_token', 'default', true, now(), now())
+                    ON CONFLICT (instance_id) DO UPDATE SET
+                        is_active = EXCLUDED.is_active,
+                        updated_at = now()
+                """),
+                {"tenant_id": config["id"]},
+            )
+
         await db.commit()
         print(f"  ✓ Tenant '{slug}' upserted.")
 

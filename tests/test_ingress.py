@@ -21,8 +21,6 @@ Key test cases:
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 from app.services.ingress import IngressResult, handle_webhook
 from tests.fixtures.greenapi_payloads import (
     group_message,
@@ -126,7 +124,7 @@ class TestFiltering:
     async def test_group_message_is_filtered(self, fake_redis, mock_arq):
         result = await run_ingress(group_message(), fake_redis=fake_redis, mock_arq=mock_arq)
         assert result.accepted is False
-        assert result.reason == "group_message"
+        assert result.reason == "non_private_chat"
 
     async def test_state_change_is_filtered(self, fake_redis, mock_arq):
         result = await run_ingress(state_change(), fake_redis=fake_redis, mock_arq=mock_arq)

@@ -137,15 +137,19 @@ async def seed_tenant(slug: str, database_url: str) -> None:
         )
 
         if slug == "pashutomazia":
+            token = os.environ.get("PASHUTOMAZIA_GREEN_API_TOKEN", "")
+            if not token:
+                print("  WARNING: PASHUTOMAZIA_GREEN_API_TOKEN not set — token_ref will be empty")
             await db.execute(
                 text("""
                     INSERT INTO tenant_channels (id, tenant_id, instance_id, token_ref, label, is_active, created_at, updated_at)
-                    VALUES (gen_random_uuid(), :tenant_id, '7103335194', 'dummy_token', 'default', true, now(), now())
+                    VALUES (gen_random_uuid(), :tenant_id, '7103335194', :token_ref, 'default', true, now(), now())
                     ON CONFLICT (instance_id) DO UPDATE SET
+                        token_ref = EXCLUDED.token_ref,
                         is_active = EXCLUDED.is_active,
                         updated_at = now()
                 """),
-                {"tenant_id": config["id"]},
+                {"tenant_id": config["id"], "token_ref": token},
             )
 
         await db.commit()

@@ -109,7 +109,7 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
             instance_id=instance_id,
             chat_id=chat_id,
             text=reply_text,
-            tenant_config=tenant_config,
+            token=payload.get("token_ref", ""),
         )
 
         # ── 6. Save this turn to memory ───────────────────────────────────────
@@ -171,29 +171,35 @@ async def _send_reply(
     instance_id: str,
     chat_id: str,
     text: str,
-    tenant_config: dict[str, Any],
+    token: str,
 ) -> None:
     """
     Send a text message to the user via the Green API.
 
-    Phase 3 stub: logs the reply instead of sending.
-    Phase 4 will add:
-      - Real Green API client (httpx)
-      - Typing indicator simulation (sendTyping before the reply)
-      - Markdown → WhatsApp plain text conversion
-      - Retry on Green API errors
+    Args:
+        instance_id: Green API instance (phone number ID).
+        chat_id:     WhatsApp chat ID (e.g. "972501234567@c.us").
+        text:        Reply text produced by the LangGraph agent.
+        token:       Green API instance token (from TenantChannel.token_ref).
     """
-    # TODO Phase 4: real Green API client
-    # from app.services.greenapi_client import GreenAPIClient
-    # async with GreenAPIClient(instance_id, token) as client:
-    #     await client.send_typing(chat_id)
-    #     await asyncio.sleep(min(len(text) / 50, 3))   # simulate typing
-    #     await client.send_message(chat_id, text)
+    from app.services.greenapi_client import GreenAPIClient
 
-    logger.info(
-        "orchestrator:reply_stub instance=%s chat=%s text_len=%d",
-        instance_id,
-        chat_id,
-        len(text),
-    )
-    logger.debug("orchestrator:reply_text %r", text[:200])
+    if not token:
+        logger.error(
+            "orchestrator:no_token instance=%s — cannot send reply. "
+            "Set token_ref in tenant_channels for this instance.",
+            instance_id,
+        )
+        return
+
+    client = GreenAPIClient(instance_id=instance_id, token=token)
+    try:
+        await client.send_message(chat_id=chat_id, text=text)
+    except Exception:
+        logger.exception(
+            "orchestrator:send_failed instance=%s chat=%s text_len=%d",
+            instance_id,
+            chat_id,
+            len(text),
+        )
+        raise  # re-raise so ARQ can retry

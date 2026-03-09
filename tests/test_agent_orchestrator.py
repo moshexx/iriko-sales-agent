@@ -33,6 +33,7 @@ BASE_PAYLOAD: dict[str, Any] = {
     "sender_name": "Test User",
     "text": "שלום",
     "id_message": "msg-001",
+    "token_ref": "test-token-abc",
 }
 
 

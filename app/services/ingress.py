@@ -111,6 +111,8 @@ async def handle_webhook(
         "text": text,
         "type_message": event.message_data.type_message,
         "timestamp": event.timestamp,
+        # Green API credentials for this channel — needed by the worker to send the reply
+        "token_ref": channel.token_ref,
     }
 
     await arq.enqueue_job("process_message", job_payload)

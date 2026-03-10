@@ -37,8 +37,43 @@ from app.services.tools.book_meeting import book_meeting
 from app.services.tools.escalate import escalate_to_human
 from app.services.tools.qualify_lead import qualify_lead
 from app.services.tools.vector_search import vector_search
+from app.utils.whatsapp_format import normalise_for_whatsapp
 
 logger = logging.getLogger(__name__)
+
+
+# ─── Iroko-specific qualification prompt ──────────────────────────────────────
+
+IROKO_QUALIFY_PROMPT = """\
+You are a lead qualification assistant for a parquet flooring products store.
+
+You will be given the agent's persona/instructions, optionally a recent conversation history,
+a knowledge base context, and the user's latest message.
+Your job is to decide how the conversation should be routed.
+
+Return ONLY valid JSON in this exact format:
+{
+  "status": "qualified" | "disqualified" | "undecided",
+  "reason": "<one sentence explanation>",
+  "ready_to_book": true | false,
+  "should_escalate": true | false
+}
+
+Escalate (should_escalate=true) if:
+- The user explicitly asks to speak with a human.
+  Hebrew: "נציג", "בן אדם", "אדם אמיתי", "מישהו", "מנהל", "תעביר אותי", "לדבר עם מישהו".
+  English: "agent", "human", "support", "person", "someone".
+- The message is complete gibberish or clearly off-topic for a flooring store.
+
+Disqualify (status=disqualified) if:
+- The user clearly states they are not interested.
+
+Mark ready_to_book=true only if the user expresses clear purchase intent
+(e.g. "אני רוצה להזמין", "איך קונים", "אני קונה", "how do I order").
+Do NOT set ready_to_book=true just because the user is browsing or asking questions.
+
+In all other cases, set status=undecided and let the agent continue the conversation.
+"""
 
 
 # ─── State ────────────────────────────────────────────────────────────────────
@@ -113,6 +148,8 @@ async def node_qualify(state: AgentState) -> dict[str, Any]:
         context=state["retrieved_context"],
         llm_model=state["llm_model"],
         system_prompt=state["system_prompt"],
+        qualify_prompt=IROKO_QUALIFY_PROMPT,
+        chat_history=state.get("chat_history"),
     )
 
     return {
@@ -137,7 +174,8 @@ async def node_respond(state: AgentState) -> dict[str, Any]:
     """
     import litellm
 
-    logger.info("iroko:respond chat=%s history_len=%d", state["chat_id"], len(state.get("chat_history", [])))
+    history_len = len(state.get("chat_history", []))
+    logger.info("iroko:respond chat=%s history_len=%d", state["chat_id"], history_len)
 
     context_block = "\n\n".join(state["retrieved_context"]) if state["retrieved_context"] else ""
 
@@ -158,6 +196,7 @@ async def node_respond(state: AgentState) -> dict[str, Any]:
     )
 
     reply = response.choices[0].message.content or ""
+    reply = normalise_for_whatsapp(reply)
     return {"reply_text": reply}
 
 

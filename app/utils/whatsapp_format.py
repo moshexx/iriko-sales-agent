@@ -21,4 +21,6 @@ def normalise_for_whatsapp(text: str) -> str:
     """Convert LLM Markdown output to WhatsApp-compatible plain text."""
     # **bold** → bold (strip double asterisks)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text, flags=re.DOTALL)
+    # em dash → regular dash
+    text = text.replace("\u2014", "-")
     return text

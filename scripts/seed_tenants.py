@@ -151,7 +151,7 @@ async def seed_tenant(slug: str, database_url: str) -> None:
                     VALUES (gen_random_uuid(), :tenant_id, '7103335194', :token_ref, 'default', true, now(), now())
                     ON CONFLICT (instance_id) DO UPDATE SET
                         tenant_id = EXCLUDED.tenant_id,
-                        token_ref = EXCLUDED.token_ref,
+                        token_ref = CASE WHEN EXCLUDED.token_ref <> '' THEN EXCLUDED.token_ref ELSE tenant_channels.token_ref END,
                         is_active = EXCLUDED.is_active,
                         updated_at = now()
                 """),

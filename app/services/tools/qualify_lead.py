@@ -91,14 +91,14 @@ async def qualify_lead(
         )
 
         raw = (response.choices[0].message.content or "").strip()
-        if not raw:
-            raise ValueError("LLM returned empty response for qualification")
         # Claude sometimes wraps JSON in markdown fences — strip them
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
+        if not raw:
+            raise ValueError("LLM returned empty response for qualification")
         result = json.loads(raw)
 
         return {

@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.graphs.factory import get_graph
 from app.services.memory import load_history, save_turn
+from app.utils.whatsapp_format import normalise_for_whatsapp
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ async def run_agent(payload: dict[str, Any], db: AsyncSession) -> None:
     final_state = await graph.ainvoke(initial_state)
 
     # ── 5. Send the reply via Green API ───────────────────────────────────────
-    reply_text = final_state.get("reply_text", "")
+    reply_text = normalise_for_whatsapp(final_state.get("reply_text", ""))
     if reply_text:
         await _send_reply(
             instance_id=instance_id,

@@ -59,7 +59,7 @@ TENANT_CONFIGS = {
     "iroko": {
         "id": "00000000-0000-0000-0000-000000000002",
         "slug": "iroko",
-        "name": "Iroko Hair Clinic",
+        "name": "אירוקו פרקטים",
         "graph_type": "iroko",
         "llm_model": "anthropic/claude-sonnet-4-6",
         "qdrant_collection": "iroko_knowledge",
@@ -77,7 +77,7 @@ TENANT_CONFIGS = {
         "rate_limit_rpm": 60,
         "extra_config": {
             "consultation_fee_ils": 180,
-            "payment_provider": "hype",
+            "payment_provider": "hyp",
         },
         "system_prompt_file": PROMPTS_DIR / "dng" / "system_prompt.md",
     },
@@ -136,15 +136,21 @@ async def seed_tenant(slug: str, database_url: str) -> None:
             },
         )
 
-        if slug == "pashutomazia":
-            token = os.environ.get("PASHUTOMAZIA_GREEN_API_TOKEN", "")
+        channel_env_var = {
+            "pashutomazia": "PASHUTOMAZIA_GREEN_API_TOKEN",
+            "iroko": "IROKO_GREEN_API_TOKEN",
+        }.get(slug)
+
+        if channel_env_var:
+            token = os.environ.get(channel_env_var, "")
             if not token:
-                print("  WARNING: PASHUTOMAZIA_GREEN_API_TOKEN not set — token_ref will be empty")
+                print(f"  WARNING: {channel_env_var} not set — token_ref will be empty")
             await db.execute(
                 text("""
                     INSERT INTO tenant_channels (id, tenant_id, instance_id, token_ref, label, is_active, created_at, updated_at)
                     VALUES (gen_random_uuid(), :tenant_id, '7103335194', :token_ref, 'default', true, now(), now())
                     ON CONFLICT (instance_id) DO UPDATE SET
+                        tenant_id = EXCLUDED.tenant_id,
                         token_ref = EXCLUDED.token_ref,
                         is_active = EXCLUDED.is_active,
                         updated_at = now()

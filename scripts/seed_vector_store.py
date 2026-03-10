@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import hashlib
 import os
 import sys
@@ -66,9 +67,37 @@ def chunk_file(path: Path) -> list[str]:
     return [c.strip() for c in raw_chunks if len(c.strip()) >= 20]
 
 
+def chunk_csv_file(path: Path) -> list[str]:
+    """
+    Convert a CSV product file into text chunks — one chunk per row.
+
+    Expected columns (Hebrew headers): שם המוצר, תיאור, מתי להמליץ עליו, קישור למוצר
+    Each row is formatted as a short product description block.
+    """
+    chunks = []
+    with path.open(encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = row.get("שם המוצר", "").strip()
+            desc = row.get("תיאור", "").strip()
+            when = row.get("מתי להמליץ עליו", "").strip()
+            link = row.get("קישור למוצר", "").strip()
+            if not name:
+                continue
+            parts = [f"## {name}"]
+            if desc:
+                parts.append(desc)
+            if when:
+                parts.append(f"מתי להמליץ: {when}")
+            if link:
+                parts.append(f"קישור: {link}")
+            chunks.append("\n".join(parts))
+    return chunks
+
+
 def chunk_directory(docs_dir: Path) -> list[tuple[str, str]]:
     """
-    Read all .md and .txt files in a directory and return (source, chunk) pairs.
+    Read all .md, .txt, and .csv files in a directory and return (source, chunk) pairs.
     """
     chunks = []
     for ext in ("*.md", "*.txt"):
@@ -76,6 +105,10 @@ def chunk_directory(docs_dir: Path) -> list[tuple[str, str]]:
             file_chunks = chunk_file(file_path)
             for chunk in file_chunks:
                 chunks.append((file_path.name, chunk))
+    for file_path in sorted(docs_dir.glob("*.csv")):
+        file_chunks = chunk_csv_file(file_path)
+        for chunk in file_chunks:
+            chunks.append((file_path.name, chunk))
     return chunks
 
 
@@ -174,7 +207,7 @@ async def main(collection: str, docs_dir: Path, dry_run: bool, embed_model: str)
     chunks = chunk_directory(docs_dir)
 
     if not chunks:
-        print("No .md or .txt files found. Nothing to do.")
+        print("No .md, .txt, or .csv files found. Nothing to do.")
         sys.exit(0)
 
     print(f"Found {len(chunks)} chunks across {len({s for s, _ in chunks})} files")
@@ -210,7 +243,7 @@ async def main(collection: str, docs_dir: Path, dry_run: bool, embed_model: str)
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed Qdrant with tenant documents")
     parser.add_argument("--collection", required=True, help="Qdrant collection name (e.g. iroko_knowledge)")
-    parser.add_argument("--docs-dir", required=True, type=Path, help="Directory with .md/.txt files")
+    parser.add_argument("--docs-dir", required=True, type=Path, help="Directory with .md/.txt/.csv files")
     parser.add_argument("--dry-run", action="store_true", help="Print chunks without uploading")
     parser.add_argument(
         "--embed-model",

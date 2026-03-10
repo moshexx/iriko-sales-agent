@@ -28,6 +28,7 @@ LangGraph concepts used here:
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Literal
 
 from langgraph.graph import END, StateGraph
@@ -158,6 +159,7 @@ async def node_respond(state: AgentState) -> dict[str, Any]:
     )
 
     reply = response.choices[0].message.content or ""
+    reply = re.sub(r"\*\*(.+?)\*\*", r"\1", reply)  # strip markdown bold (WhatsApp doesn't render it)
     return {"reply_text": reply}
 
 

@@ -29,12 +29,10 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 QUALIFY_SYSTEM_PROMPT = """\
-You are a lead qualification assistant for a hair clinic sales agent.
+You are a lead qualification assistant for a sales agent.
 
-Given a user's message and relevant knowledge base context, determine:
-1. Is this lead qualified (genuinely interested, suitable for treatment)?
-2. Are they ready to book a consultation appointment?
-3. Should we escalate to a human agent?
+You will be given the agent's persona/instructions, a knowledge base context, and the user's message.
+Your job is to decide how the conversation should be routed.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -45,12 +43,15 @@ Return ONLY valid JSON in this exact format:
 }
 
 Escalate if:
-- The user explicitly asks for a human agent
-- The message is complete gibberish or clearly not related to hair treatment
+- The user explicitly asks to speak with a human (e.g. writes "נציג", "agent", "human", "support")
+- The message is complete gibberish or clearly completely off-topic
 
 Disqualify if:
 - The user clearly states they are not interested
-- The user has a condition that is clearly incompatible (e.g., full baldness, active cancer)
+
+Mark ready_to_book=true only if the user explicitly asks to schedule an appointment or meeting.
+
+In all other cases, set status=undecided and let the agent continue the conversation.
 """
 
 
@@ -86,6 +87,7 @@ async def qualify_lead(
         {
             "role": "user",
             "content": (
+                f"## Agent Persona\n{system_prompt}\n\n"
                 f"## Knowledge Base Context\n{context_block}\n\n"
                 f"## User Message\n{text}"
             ),
